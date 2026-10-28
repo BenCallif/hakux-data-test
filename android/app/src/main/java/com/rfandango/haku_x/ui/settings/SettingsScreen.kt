@@ -163,6 +163,8 @@ fun SettingsScreen(
         pickFolder.launch(folders.lastOrNull())
       }
 
+      StorageSettings()
+
       Section(stringResource(R.string.settings_section_controls))
       ListItem(
         headlineContent = { Text(stringResource(R.string.settings_overlay)) },

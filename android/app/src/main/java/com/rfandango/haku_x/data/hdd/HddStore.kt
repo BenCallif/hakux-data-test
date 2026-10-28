@@ -2,6 +2,7 @@ package com.rfandango.haku_x.data.hdd
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.rfandango.haku_x.data.GameStorage
 import com.rfandango.haku_x.data.XprImage
 import java.io.File
 import java.nio.ByteBuffer
@@ -14,10 +15,10 @@ import java.nio.ByteOrder
  * with SaveMeta.xbx and SaveImage.xbx), the titles' data (E:\TDATA), the
  * cache drives (X, Y, Z) and the savestates.
  */
-class HddStore(context: Context) {
-  val native = File(context.filesDir, "native")
-  val root = File(native, "hdd")
-  private val states = File(native, "states")
+class HddStore(private val context: Context) {
+  val native: File get() = GameStorage.root(context)
+  val root: File get() = File(native, "hdd")
+  private val states: File get() = File(native, "states")
 
   class Save(val dir: File, val name: String, val size: Long, val modified: Long) {
     val icon get() = File(dir, "SaveImage.xbx").takeIf { it.isFile }

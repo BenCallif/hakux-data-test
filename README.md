@@ -7,6 +7,15 @@ reimplementation of the Xbox kernel, and draws by decoding the push buffer
 the game's own Direct3D sends the NV2A into Vulkan. Audio is the MCPX APU,
 ported from xemu.
 
+## Development build in this fork
+
+This fork adds **Settings → Storage → Game data location** to move game saves,
+game data, and savestates to one selected folder.
+
+[Download the storage-location debug APK](downloads/hakuX-storage-debug.apk?raw=true)
+([build notes and checksum](downloads/README.md)). This development build installs
+separately from the official app. [Storage locations and migration details](docs/storage.md).
+
 ## hakuX is free
 
 hakuX is free, and always will be. The only official download is

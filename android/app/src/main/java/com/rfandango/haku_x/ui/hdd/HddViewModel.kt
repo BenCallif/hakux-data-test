@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rfandango.haku_x.R
+import com.rfandango.haku_x.data.GameStorage
 import com.rfandango.haku_x.data.AppPrefs
 import com.rfandango.haku_x.data.PreviousVersion
 import com.rfandango.haku_x.data.hdd.Backup
@@ -18,6 +19,7 @@ import com.rfandango.haku_x.data.hdd.XboxHdd
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -27,6 +29,11 @@ import kotlinx.coroutines.withContext
 /** The hard disk screen's state: what the disk holds, the console files a console's or xemu's data
  *  comes in with, a long job (image import, backup, restore), and a notice to show. */
 class HddViewModel(app: Application) : AndroidViewModel(app) {
+  private val storageErrors = CoroutineExceptionHandler { _, error ->
+    _notice.value = message(error)
+    _contents.update { it.copy(loading = false) }
+    _job.update { it?.copy(error = message(error)) }
+  }
   val store = HddStore(app)
   private val console = ConsoleFiles(app)
 
@@ -88,8 +95,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
   }
 
   fun refresh() {
-    viewModelScope.launch {
-      val c = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val c = withStorage {
         Contents(store.usage(), store.saves(), store.titleData(), store.caches(), store.states(), false,
                  console.status(), previousImage())
       }
@@ -104,8 +111,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
   fun clearAllCaches() = io { (3..5).forEach(store::clearCache) }
 
   private fun io(work: () -> Unit) {
-    viewModelScope.launch {
-      withContext(Dispatchers.IO) { runCatching(work) }
+    viewModelScope.launch(storageErrors) {
+      withStorage { runCatching(work) }
       refresh()
     }
   }
@@ -118,9 +125,9 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
     if (_job.value?.finished == false) return
     _job.value = Job(Kind.IMAGE_IMPORT)
     val app = getApplication<Application>()
-    viewModelScope.launch {
+    viewModelScope.launch(storageErrors) {
       var report: SaveResigner.Report? = null
-      val r = withContext(Dispatchers.IO) {
+      val r = withStorage {
         runCatching {
           val resigner = console.resigner() ?: throw IOException(app.getString(R.string.hdd_console_needed))
           val o = DiskImport.open(app, null, uri) { image ->
@@ -140,8 +147,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
   /** A console file (MCPX boot ROM, BIOS, EEPROM) picked by the user. */
   fun setConsoleFile(kind: ConsoleFiles.Kind, uri: Uri) {
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching { app.contentResolver.openInputStream(uri)!!.use { console.set(kind, it) } }
       }
       r.exceptionOrNull()?.let { _notice.value = app.getString(R.string.hdd_console_bad, message(it)) }
@@ -154,8 +161,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
     if (_job.value?.finished == false) return
     _job.value = Job(Kind.BACKUP)
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching {
           app.contentResolver.openOutputStream(uri, "wt")!!.use { out ->
             Backup.write(out, store.native, states, caches) { d, t, w -> _job.update { it?.copy(done = d, total = t, what = w) } }
@@ -169,8 +176,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
   /** A backup at uri read for its marker; the screen asks before restore() puts it in place. */
   fun planRestore(uri: Uri) {
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val info = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val info = withStorage {
         runCatching { app.contentResolver.openInputStream(uri)!!.use { Backup.info(it) } }.getOrNull()
       }
       if (info?.kind == "backup") _restore.value = Restore(uri, info)
@@ -184,8 +191,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
     if (_job.value?.finished == false) return
     _job.value = Job(Kind.RESTORE)
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching {
           val size = runCatching { app.contentResolver.openAssetFileDescriptor(s.uri, "r")!!.use { it.length } }.getOrDefault(-1L)
           app.contentResolver.openInputStream(s.uri)!!.use { input ->
@@ -213,8 +220,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
       SaveArchive.Pick(t.dir, if (save.isEmpty()) null else t.saves.filter { it.dir.name == save }.map { it.dir })
     }
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching { app.contentResolver.openOutputStream(uri, "wt")!!.use { SaveArchive.write(it, picks) } }
       }
       _notice.value = r.fold(
@@ -227,8 +234,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
   /** A zip of saves at uri read for what it holds; the screen asks before importSaves() writes it. */
   fun planSaveImport(uri: Uri) {
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching {
           app.contentResolver.openInputStream(uri)!!.use { SaveArchive.plan(it, partition1()) } to console.status().ready
         }
@@ -247,8 +254,8 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
     val s = _saveImport.value ?: return
     _saveImport.value = null
     val app = getApplication<Application>()
-    viewModelScope.launch {
-      val r = withContext(Dispatchers.IO) {
+    viewModelScope.launch(storageErrors) {
+      val r = withStorage {
         runCatching {
           val e = partition1()
           val res = app.contentResolver.openInputStream(s.uri)!!.use { SaveArchive.extract(it, e) }
@@ -305,6 +312,10 @@ class HddViewModel(app: Application) : AndroidViewModel(app) {
 
   fun dismissJob() {
     if (_job.value?.finished != false) _job.value = null
+  }
+
+  private suspend fun <T> withStorage(work: () -> T): T = withContext(Dispatchers.IO) {
+    GameStorage.withAccess(getApplication<Application>(), work)
   }
 
   private fun message(t: Throwable) = t.message ?: t.javaClass.simpleName

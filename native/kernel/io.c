@@ -2538,6 +2538,32 @@ bool nc_file_state_load(NcRd *r, unsigned v)
             nc_recs_get(r, &nc_rec_DirEntry, nf->listing, sizeof(DirEntry), nf->nlisting, v);
         }
         nf->fd = -1;
+        /* Savestates can outlive a move of the app's data folder. Rebuild
+         * host paths from the saved Xbox device path, under today's HDD
+         * root; opening the serialized absolute path would use the old
+         * disk (or fail after a successful move). Keep the file format. */
+        if (nf->kind == F_HOST) {
+            const char *rel = NULL;
+            const int part = device_of(nf->path, &rel);
+            if (part < 0 || part > 7 || strlen(g_hdd_root) + strlen(rel) + 32 >= sizeof(nf->host)) {
+                nc_state_fail("a saved game file has an invalid or too long storage path");
+                ok = false;
+                break;
+            }
+            host_path(part, rel, nf->host, sizeof(nf->host));
+        }
+        if (nf->old_path[0]) {
+            /* Side files for overwrite handles move with the HDD too. */
+            const char *name = strrchr(nf->old_path, '/');
+            char moved[sizeof(nf->old_path)];
+            if (!name || !name[1] || !strcmp(name + 1, ".") || !strcmp(name + 1, "..") ||
+                snprintf(moved, sizeof(moved), "%s/.overwrite/%s", g_hdd_root, name + 1) >= (int)sizeof(moved)) {
+                nc_state_fail("an overwritten game file has an invalid storage path");
+                ok = false;
+                break;
+            }
+            memcpy(nf->old_path, moved, strlen(moved) + 1);
+        }
         if (nf->kind == F_HOST && !nf->is_dir) {
             nf->fd = open(nf->host, O_RDWR | O_CLOEXEC);
             if (nf->fd < 0 && errno == ENOENT && nf->partition >= 3 && v < 2) {

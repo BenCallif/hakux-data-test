@@ -34,6 +34,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.rfandango.haku_x.data.AppPrefs
 import com.rfandango.haku_x.data.CheatInfo
 import com.rfandango.haku_x.data.Controllers
+import com.rfandango.haku_x.data.GameStorage
 import com.rfandango.haku_x.data.GameOverrides
 import com.rfandango.haku_x.data.Logs
 import com.rfandango.haku_x.data.ModCatalog
@@ -193,7 +194,16 @@ class NativeCoreActivity : SDLActivity(), InputManager.InputDeviceListener {
   }
 
   /** The emulated hard disk's folder (the core's <hdd>). */
-  private fun hddDir() = File(filesDir, "native/hdd")
+  private var storageLease: java.io.Closeable? = null
+  private lateinit var storageRoot: File
+  private fun hddDir() = File(storageRoot, "hdd")
+
+  override fun loadLibraries() {
+    storageLease = GameStorage.acquire(this)
+    storageRoot = GameStorage.root(this)
+    GameStorage.checkReady(this, storageRoot)
+    super.loadLibraries()
+  }
 
   /** The game from its start again, in a new core process (RelaunchActivity, no frame held). */
   private fun restartGame() {
@@ -300,6 +310,7 @@ class NativeCoreActivity : SDLActivity(), InputManager.InputDeviceListener {
       else -> "started"
     })
     super.onCreate(savedInstanceState)
+    if (mBrokenLibraries) return
     if (AppPrefs(this).networkMode == AppPrefs.NET_LAN) {
       multicastLock = Network.multicastLock(this)
     }
@@ -418,6 +429,7 @@ class NativeCoreActivity : SDLActivity(), InputManager.InputDeviceListener {
 
   override fun onResume() {
     super.onResume()
+    if (mBrokenLibraries) return
     activityPaused = false
     syncPause() /* where it stopped (onPause), unless the menu is open */
     hideSystemBars()
@@ -474,7 +486,7 @@ class NativeCoreActivity : SDLActivity(), InputManager.InputDeviceListener {
     fpsHandler.removeCallbacks(rumbleRunnable)
     router?.stopRumble()
     activityPaused = true
-    syncPause() /* the emulation stops (the device suspends, another app in front) */
+    if (!mBrokenLibraries) syncPause() /* the emulation stops (the device suspends, another app in front) */
     super.onPause()
   }
 
@@ -485,7 +497,7 @@ class NativeCoreActivity : SDLActivity(), InputManager.InputDeviceListener {
     loadingDialog?.dismiss()
     (getSystemService(Context.INPUT_SERVICE) as InputManager).unregisterInputDeviceListener(this)
     multicastLock?.release()
-    super.onDestroy()
+    try { super.onDestroy() } finally { storageLease?.close(); storageLease = null }
   }
 
   /**

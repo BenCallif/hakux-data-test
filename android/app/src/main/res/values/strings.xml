@@ -482,4 +482,22 @@
   <string name="xinput_ls_y">Left stick, vertical</string>
   <string name="xinput_rs_x">Right stick, horizontal</string>
   <string name="xinput_rs_y">Right stick, vertical</string>
+  <string name="storage_section">Storage</string>
+  <string name="storage_location">Game data location</string>
+  <string name="storage_locations">Game saves: %1$s\nGame data / DLC: %2$s\nSavestates: %3$s</string>
+  <string name="storage_description">Choose one folder for game saves, game data, and savestates. The emulated disk, console identity, and shader caches move together.</string>
+  <string name="storage_private">Private app storage (default)</string>
+  <string name="storage_device_app">Device app storage: %1$s</string>
+  <string name="storage_sd_app">SD card app storage: %1$s</string>
+  <string name="storage_custom">Choose a device or SD card folder…</string>
+  <string name="storage_permission_description">Custom folders need Android file access because the emulator reads and writes game files directly. Enable All files access on Android 11 or later, or grant storage permission on Android 10 and earlier. App storage choices do not need this permission. Cloud folders are not supported.</string>
+  <string name="storage_permission_grant">Grant access</string>
+  <string name="storage_permission_needed">Storage permission was not granted. Choose an app storage location, or enable file access and try again.</string>
+  <string name="storage_move_title">Move game data</string>
+  <string name="storage_move_confirm">From: %1$s\n\nTo: %2$s\n\nExisting saves, game data, and savestates will be copied and verified before switching. The destination must be empty. After success, the old copy is removed. Close any running game first.</string>
+  <string name="storage_move">Move data</string>
+  <string name="storage_moving">Copying and verifying your data. Keep the app open and storage connected.</string>
+  <string name="storage_move_done">Game data moved. New saves and savestates will use this location.</string>
+  <string name="storage_move_cleanup">The new location is active. Some old files could not be removed; they remain in the previous folder.</string>
+  <string name="storage_move_failed">Could not change storage: %1$s</string>
 </resources>

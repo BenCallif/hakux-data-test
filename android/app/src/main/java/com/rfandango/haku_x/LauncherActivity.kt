@@ -15,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.SideEffect
 import com.rfandango.haku_x.data.AppPrefs
 import com.rfandango.haku_x.data.Game
+import com.rfandango.haku_x.data.GameStorage
 import com.rfandango.haku_x.data.PreviousVersion
 import com.rfandango.haku_x.data.SaveStateStore
 import com.rfandango.haku_x.data.Storage
@@ -42,7 +43,7 @@ class LauncherActivity : ComponentActivity() {
     val lastGameUsable = prefs.lastGamePath?.let { File(it).isFile } == true ||
       (lastGame != null && (Storage.hasReadPermission(this, lastGame) || folderReady))
     prefs.dropStale(lastGameUsable, usableFolders)
-    Thread { HddStore(this).deleteLeftovers() }.start()
+    Thread { runCatching { GameStorage.acquire(this).use { HddStore(this).deleteLeftovers() } } }.start()
     // the first start after the update from the xemu-based release: its data comes over first
     val needsMigration = !prefs.previousMigrated && PreviousVersion(this).find() != null
 

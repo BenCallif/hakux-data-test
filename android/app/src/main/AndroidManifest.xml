@@ -12,6 +12,10 @@
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
   <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+  <!-- Optional custom local/SD data folders: the native core uses POSIX filesystem I/O. -->
+  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
   <application
     android:name=".HakuXApplication"
@@ -19,6 +23,7 @@
     android:icon="@mipmap/ic_launcher"
     android:roundIcon="@mipmap/ic_launcher_round"
     android:allowBackup="false"
+    android:requestLegacyExternalStorage="true"
     android:appCategory="game"
     android:supportsRtl="true"
     android:theme="@style/Theme.HakuX">
